@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+  <meta charset="UTF-8">
+  <title></title>
+  <style>
+    body,div {
+      margin: 0;
+      padding: 0;
+    }
+    window,web,document,html,body {
+      margin: 100px auto;
+      width: 800px;
+      height: 650px;
+      font-size: 18px;
+      /*text-align: center;*/
+    }
+    #map {
+      /*width: 400px;*/
+      /*height: 400px;*/
+      /*background-color: #cccccc;*/
+      margin: 0 auto;
+      width: 800px;
+      height: 800px;
+      position: relative;
+      overflow: hidden;
+    }
+    span {
+      width: 800px;
+      font: 100px/800px '黑体';
+      color: red;
+      text-align: center;
+      background-color: #ccc;
+      float: left;
+      z-index: 1;
+      position: absolute;
+    }
+    #map div {
+      position: absolute;
+    }
+    .notActive {
+      display: none;
+    }
+    button {
+      margin-top: 20px;
+      font-size: 22px;
+      width: 195px;
+      text-align: center;
+      height: 60px;
+      line-height: 60px;
+    }
+    input {
+      display: inline-block;
+      width: 200px;
+      height: 40px;
+      margin: 20px 20px 0 ;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<br>
+  <div id="map"><span>炸飞机</span></div>
+  <button id="start">开始游戏</button>
+  <button id="makeSelf" disabled ='disabled'>自定义飞机位置</button>
+  <button id="makeRandom" disabled ='disabled'>随机设定飞机位置</button>
+  <button id="btn" disabled ='disabled'>投炸弹</button>
+  请输入要炸位置的横坐标：<input id="iptx" type="text" readonly placeholder="请输入0-9之间的数字"/>
+  </br>
+  请输入要炸位置的纵坐标：<input id="ipty" type="text" readonly placeholder="请输入0-9之间的数字"/>
+  <script>
+    //地图划分
+    (function(){
+      function Map(options){
+        this.width = options.width||80;
+        this.height = options.height||80;
+        this.bgColor = options.bgColor||'#ccc';
+        this.mapPieces = [];
+      }
+      //地图初始化
+      Map.prototype.init = function(){
+        //外层控制行数
+        for(var i = 0;i<10;i++){
+          //内层控制列数
+          for(var j =0;j<10;j++){
+            var mapPiece = document.createElement('div');
+            mapPiece.style.width = this.width + 'px';
+            mapPiece.style.height = this.height + 'px';
+            mapPiece.style.backgroundColor = this.bgColor;
+            mapPiece.style.left = i * this.width + 'px';
+            mapPiece.style.top = j * this.height + 'px';
+            mapPiece.style.border = '1px solid #ddd';
+            var map = document.getElementById('map');
+            map.appendChild(mapPiece);
+            this.mapPieces.push({x:i,y:j});
+            //console.log(this.mapPieces);
+          }
+        }
+      }
+      window.Map = Map;
+      //检测
+//      var m1 = new Map({map:document.getElementById('map')});
+//      m1.init();
+    }());
+    //飞机
+    (function(){
+      function Plane(options){
+        this.width = options.width||80;
+        this.height = options.height||80;
+        this.body1 = [
+          {x:2,y:0,bgColor:'red'},
+          {x:2,y:1,bgColor:'orange'},
+          {x:2,y:2,bgColor:'orange'},
+          {x:2,y:3,bgColor:'orange'},
+          {x:0,y:1,bgColor:'orange'},
+          {x:1,y:1,bgColor:'orange'},
+          {x:3,y:1,bgColor:'orange'},
+          {x:4,y:1,bgColor:'orange'},
+          {x:1,y:3,bgColor:'orange'},
+          {x:3,y:3,bgColor:'orange'}
+        ]
+        this.body2 =[
+          {x:2,y:0,bgColor:'red'},
+          {x:2,y:1,bgColor:'orange'},
+          {x:2,y:2,bgColor:'orange'},
+          {x:2,y:3,bgColor:'orange'},
+          {x:0,y:1,bgColor:'orange'},
+          {x:1,y:1,bgColor:'orange'},
+          {x:3,y:1,bgColor:'orange'},
+          {x:4,y:1,bgColor:'orange'},
+          {x:1,y:3,bgColor:'orange'},
+          {x:3,y:3,bgColor:'orange'}
+        ]
+        this.body3 = [
+          {x:2,y:0,bgColor:'red'},
+          {x:2,y:1,bgColor:'orange'},
+          {x:2,y:2,bgColor:'orange'},
+          {x:2,y:3,bgColor:'orange'},
+          {x:0,y:1,bgColor:'orange'},
+          {x:1,y:1,bgColor:'orange'},
+          {x:3,y:1,bgColor:'orange'},
+          {x:4,y:1,bgColor:'orange'},
+          {x:1,y:3,bgColor:'orange'},
+          {x:3,y:3,bgColor:'orange'}
+        ];
+        this.map = options.map;
+        this.direction1 = 'up';
+        this.direction2 = 'up';
+        this.direction3 = 'up';
+      }
+      //飞机初始化
+      Plane.prototype.init = function(currentBody){
+        //创建机头
+          var planeHead = document.createElement('div');
+          planeHead.style.width = this.width + 'px';
+          planeHead.style.height = this.height + 'px';
+          planeHead.style.backgroundColor = currentBody[0].bgColor;
+          planeHead.style.left = currentBody[0].x * this.width + 'px';
+          planeHead.style.top = currentBody[0].y * this.height + 'px';
+          planeHead.className = 'notActive';
+          var map = document.getElementById('map');
+          map.appendChild(planeHead);
+          //创建机身
+          for(var i = 1;i<currentBody.length;i++){
+            var planeBody = document.createElement('div');
+            planeBody.style.width = this.width + 'px';
+            planeBody.style.height = this.height + 'px';
+            planeBody.style.backgroundColor = currentBody[i].bgColor;
+            planeBody.style.left = currentBody[i].x * this.width + 'px';
+            planeBody.style.top = currentBody[i].y * this.height + 'px';
+            planeBody.className = 'notActive';
+            var map = document.getElementById('map');
+            map.appendChild(planeBody);
+          }
+      };
+
+      //飞机定位
+      Plane.prototype.location = function(currentBody,currentDirection){
+        var planeHead_x = currentBody[0].x;
+        var planeHead_y = currentBody[0].y;
+        console.log(currentDirection + ': '+ planeHead_x,planeHead_y);
+        switch(currentDirection){
+          case 'up':
+            for(var i = 1;i<currentBody.length;i++){
+              currentBody[i].x = currentBody[i].x + planeHead_x - 2;
+              currentBody[i].y = currentBody[i].y + planeHead_y;
+            }
+            break;
+          case 'down':
+              function Down(body){
+                for(var i = 1;i<body.length;i++){
+                  if(i<=3){
+                    body[i].x = planeHead_x;
+                    body[i].y = planeHead_y - i;
+                  }else if(i<=7){
+                    body[i].y = planeHead_y - 1;
+                    body[4].x = planeHead_x - 2;
+                    body[5].x = planeHead_x - 1;
+                    body[6].x = planeHead_x + 1;
+                    body[7].x = planeHead_x + 2;
+                  }else if(i<=9){
+                    body[i].y = planeHead_y - 3;
+                    body[8].x = planeHead_x - 1;
+                    body[9].x = planeHead_x + 1;
+                  }
+                }
+              }
+              Down(currentBody);
+            break;
+          case 'left':
+              function Left(body){
+                for(var i = 1;i<body.length;i++) {
+                  if (i <= 3) {
+                    body[i].y = planeHead_y;
+                    body[i].x = planeHead_x + i;
+                  } else if (i <= 7) {
+                    body[i].x = planeHead_x + 1;
+                    body[4].y = planeHead_y - 2;
+                    body[5].y = planeHead_y - 1;
+                    body[6].y = planeHead_y + 1;
+                    body[7].y = planeHead_y + 2;
+                  } else if (i <= 9) {
+                    body[i].x = planeHead_x + 3;
+                    body[8].y = planeHead_y - 1;
+                    body[9].y = planeHead_y + 1;
+                  }
+                }
+              }
+            Left(currentBody);
+            break;
+          case 'right':
+              function Right(body){
+                for(var i = 1;i<body.length;i++) {
+                  if (i <= 3) {
+                    body[i].y = planeHead_y;
+                    body[i].x = planeHead_x - i;
+                  } else if (i <= 7) {
+                    body[i].x = planeHead_x - 1;
+                    body[4].y = planeHead_y - 2;
+                    body[5].y = planeHead_y - 1;
+                    body[6].y = planeHead_y + 1;
+                    body[7].y = planeHead_y + 2;
+                  } else if (i <= 9) {
+                    body[i].x = planeHead_x - 3;
+                    body[8].y = planeHead_y - 1;
+                    body[9].y = planeHead_y + 1;
+                  }
+                }
+              }
+            Right(currentBody);
+            break;
+        }
+        this.init(currentBody);
+        //this.init(this.body2);
+        //this.init(this.body3);
+        //var that = this;
+//        setTimeout(function(){
+//          for(var i = 0;i<this.body.length;i++){
+//            var map = document.getElementById('map');
+//            map.children[100+1+i].className = 'notActive';
+//          }
+//        }.bind(this),1000);
+      }
+      window.Plane = Plane;
+      //检测
+//      var p1 = new Plane({map:document.getElementById('map')});
+//      p1.init();
+    }());
+    //游戏
+    (function(){
+      function Game(options){
+        this.map = options.map;
+        this.plane = options.plane;
+//        this.x;
+//        this.y;
+      }
+      //初始化
+      Game.prototype.init = function(){
+        this.map.init();
+        //this.plane.init();
+        this.planeHeadLocation(this.plane.body1,planeHeadDirection1,planeHeadLocation1_x,planeHeadLocation1_y);
+        this.planeHeadLocation(this.plane.body2,planeHeadDirection2,planeHeadLocation2_x,planeHeadLocation2_y);
+        this.planeHeadLocation(this.plane.body3,planeHeadDirection3,planeHeadLocation3_x,planeHeadLocation3_y);
+        this.plane.location(this.plane.body1,planeHeadDirection1);
+        this.plane.location(this.plane.body2,planeHeadDirection2);
+        this.plane.location(this.plane.body3,planeHeadDirection3);
+        //this.plane.init();
+//        this.planeHeadDirection();
+//        this.planeHeadLocation();
+//        this.plane.location();
+        //this.plane.init();
+       // this.Playing();
+        //this.gameOver();
+      };
+
+      Game.prototype.planeHeadLocation = function(currentBody,planeHeadDirection,planeHeadLocation_x,planeHeadLocation_y){
+//        var planeHeadLocation_x = prompt('请输入机头横坐标: 0-9');
+//        var planeHeadLocation_y = prompt('请输入机头纵坐标: 0-9');
+        switch(planeHeadDirection){
+          case 'up':
+            planeHeadLocation_x = planeHeadLocation_x<2?2:planeHeadLocation_x;
+            planeHeadLocation_x = planeHeadLocation_x>7?7:planeHeadLocation_x;
+            planeHeadLocation_y = planeHeadLocation_y>6?6:planeHeadLocation_y;
+            break;
+          case 'down':
+            planeHeadLocation_x = planeHeadLocation_x<2?2:planeHeadLocation_x;
+            planeHeadLocation_x = planeHeadLocation_x>7?7:planeHeadLocation_x;
+            planeHeadLocation_y = planeHeadLocation_y<3?3:planeHeadLocation_y;
+            break;
+          case 'left':
+            planeHeadLocation_x = planeHeadLocation_x>6?6:planeHeadLocation_x;
+            planeHeadLocation_y = planeHeadLocation_y<2?2:planeHeadLocation_y;
+            planeHeadLocation_y = planeHeadLocation_y>7?7:planeHeadLocation_y;
+            break;
+          case 'right':
+            planeHeadLocation_x = planeHeadLocation_x<3?3:planeHeadLocation_x;
+            planeHeadLocation_y = planeHeadLocation_y<2?2:planeHeadLocation_y;
+            planeHeadLocation_y = planeHeadLocation_y>7?7:planeHeadLocation_y;
+            break;
+        }
+        currentBody[0].x = Number(planeHeadLocation_x);
+        currentBody[0].y = Number(planeHeadLocation_y);
+        //console.log(planeHeadLocation_x,planeHeadLocation_y,this.plane.body[0].x,this.plane.body[0].y)
+      };
+      //游戏进行
+//      Game.prototype.Playing = function(){
+//        this.x = prompt('请输入要炸掉位置的横坐标');
+//        this.y = prompt('请输入要炸掉位置的纵坐标');
+//        //console.log(this.x,this.y);
+//      };
+      //游戏结束
+      Game.prototype.gameOver = function(currentBody,num){
+        var x0 = Number(x);
+        var y0 = Number(y);
+        //console.log(x0,y0);
+       // console.log(this.plane.body[0].x);
+        //没炸到
+        var map = document.getElementById('map');
+        map.children[y0+10*x0+1].style.backgroundColor = '#eee';
+        //炸到机头
+        if(x0 == currentBody[0].x && y0 ==currentBody[0].y) {
+          //console.log('炸到机头了');
+          for (var i = 0; i < currentBody.length; i++) {
+            var map = document.getElementById('map');
+            map.children[100 + num + i].className = '';
+          }
+          alert('恭喜，炸到机头');
+        }
+
+        var flag = true;
+        for(var j = 101;j<=130;j++){
+          var map = document.getElementById('map');
+          //console.log(map.children[j]);
+          if(map.children[j].className != ''){
+            flag = false;
+          }
+        }
+        if(flag){
+          alert('炸毁所有飞机，游戏结束！！！');
+          var btn = document.getElementById('btn');
+          btn.disabled = true;
+        }
+
+        //炸到机身
+        for(var i = 1;i<currentBody.length;i++){
+          if(x0 == currentBody[i].x && y0 ==currentBody[i].y){
+            //console.log('炸到机身了');
+            //console.log(that.plane.body[i]);
+            var map = document.getElementById('map');
+            map.children[100+num+i].className = '';
+            //that.plane.body[i].className = '';
+            alert('炸到机身了，继续');
+          }
+        }
+
+      };
+      window.Game = Game;
+
+    }());
+
+    //创建游戏对象
+    var currentMap = document.getElementById('map');
+    var game = new Game({
+        map: new Map({}),
+        plane: new Plane({map: currentMap})
+
+        });
+    //game.init();
+    //获取节点对象
+    var start = document.getElementById('start');
+    var span = document.getElementsByTagName('span')[0];
+    var makeSelf = document.getElementById('makeSelf');
+    var makeRandom = document.getElementById('makeRandom');
+    var btn = document.getElementById('btn');
+    var iptx = document.getElementById('iptx');
+    var ipty = document.getElementById('ipty');
+    //点击开始
+    var flag = true;
+    start.onclick = function(){
+      if(flag){
+        //location.reload();
+        span.className = '';
+        span.style.backgroundColor= '#ccc';
+        span.innerText = '飞机定位';
+        makeSelf.disabled = false;
+        makeRandom.disabled = false;
+        start.innerText = '重新开始';
+        flag = false;
+      }else {
+        location.reload();
+        flag = true;
+      }
+
+      //game.init();
+    };
+    //自定义
+    makeSelf.onclick = function(){
+      var planeHeadDirection1 = prompt('请输入机头朝向：up,down,left,right');
+      var planeHeadLocation1_x = Number(prompt('请输入机头横坐标: 0-9'));
+      var planeHeadLocation1_y = Number(prompt('请输入机头纵坐标: 0-9'));
+      var planeHeadDirection2 = prompt('请输入机头朝向：up,down,left,right');
+      var planeHeadLocation2_x = Number(prompt('请输入机头横坐标: 0-9'));
+      var planeHeadLocation2_y = Number(prompt('请输入机头纵坐标: 0-9'));
+      var planeHeadDirection3 = prompt('请输入机头朝向：up,down,left,right');
+      var planeHeadLocation3_x = Number(prompt('请输入机头横坐标: 0-9'));
+      var planeHeadLocation3_y = Number(prompt('请输入机头纵坐标: 0-9'));
+      window.planeHeadDirection1 = planeHeadDirection1;
+      window.planeHeadLocation1_x = planeHeadLocation1_x;
+      window.planeHeadLocation1_y = planeHeadLocation1_y;
+      window.planeHeadDirection2 = planeHeadDirection2;
+      window.planeHeadLocation2_x = planeHeadLocation2_x;
+      window.planeHeadLocation2_y = planeHeadLocation2_y;
+      window.planeHeadDirection3 = planeHeadDirection3;
+      window.planeHeadLocation3_x = planeHeadLocation3_x;
+      window.planeHeadLocation3_y = planeHeadLocation3_y;
+      span.className = 'notActive';
+      game.init();
+      btn.disabled = false;
+      makeSelf.disabled = true;
+      makeRandom.disabled = true;
+      iptx.readOnly = false;
+      ipty.readOnly = false;
+    };
+    //随机
+    makeRandom.onclick = function(){
+      var arrDirection = ['up','down','left','right'];
+      var planeHeadDirection1 = arrDirection[Math.floor(Math.random()*4)];
+      var planeHeadLocation1_x = Math.floor(Math.random()*5);
+      var planeHeadLocation1_y = Math.floor(Math.random()*5);
+switch(true){
+  case planeHeadDirection1 == 'up':
+    planeHeadLocation1_x = 2;
+    planeHeadLocation1_y = Math.floor(Math.random()*2);
+    break;
+  case planeHeadDirection1 =='down':
+    planeHeadLocation1_x = 2;
+    planeHeadLocation1_y = Math.floor(Math.random()*5);
+    break;
+  case planeHeadDirection1 =='left':
+    planeHeadLocation1_x = Math.floor(Math.random()*2);
+    planeHeadLocation1_y = 2;
+    break;
+  case planeHeadDirection1 =='right':
+    planeHeadLocation1_x = Math.floor(Math.random()*5);
+    planeHeadLocation1_y = 2;
+    break;
+}
+      var arr2_x = [6,7,8,9];
+      var arr2_y = [0,1,2,3,4];
+      var planeHeadDirection2 = arrDirection[Math.floor(Math.random()*4)];
+      var planeHeadLocation2_x = arr2_x[Math.floor(Math.random()*4)];
+      var planeHeadLocation2_y = arr2_y[Math.floor(Math.random()*5)];
+      //planeHeadLocation2_x = planeHeadLocation2_x>6?planeHeadLocation2_x:6;
+      //planeHeadLocation2_y = planeHeadLocation2_y>6?planeHeadLocation2_y:6;
+      var arr3_y = [6,7,8,9];
+      var arr3_x = [0,1,2,3,4,5];
+      var planeHeadDirection3 = arrDirection[Math.floor(Math.random()*4)];
+      var planeHeadLocation3_x = arr3_x[Math.floor(Math.random()*6)];
+      var planeHeadLocation3_y = arr3_y[Math.floor(Math.random()*4)];
+      switch(true){
+        case planeHeadDirection1 == 'right' && planeHeadDirection3 == 'down':
+          planeHeadLocation3_y = planeHeadLocation3_y<8?8:planeHeadLocation3_y;
+          break;
+        case planeHeadDirection1 == 'left' && planeHeadDirection3 == 'down':
+          planeHeadLocation3_y = planeHeadLocation3_y<8?8:planeHeadLocation3_y;
+          break;
+        case planeHeadDirection1 == 'right' && planeHeadDirection3 == 'right':
+          planeHeadLocation3_y = 7;
+          break;
+        case planeHeadDirection1 == 'up' && planeHeadDirection3 == 'down':
+          planeHeadLocation3_y = planeHeadLocation3_y<8?8:planeHeadLocation3_y;
+          break;
+        case planeHeadDirection1 == 'down' && planeHeadDirection3 == 'down':
+          planeHeadLocation3_y = planeHeadLocation3_y<8?8:planeHeadLocation3_y;
+          break;
+        case planeHeadDirection1 == 'down' && planeHeadDirection3 == 'left' && planeHeadLocation1_y == 1:
+          planeHeadLocation3_y = 7;
+          break;
+        case planeHeadDirection1 == 'left' && planeHeadDirection3 == 'left':
+          planeHeadLocation3_y = 7;
+          break;
+        case planeHeadDirection1 == 'left' && planeHeadDirection3 == 'right' && planeHeadLocation1_x == 1 && planeHeadLocation3_x == 3:
+          planeHeadLocation3_y = 7;
+          break;
+        case planeHeadDirection1 == 'right' && planeHeadDirection2 == 'down' && planeHeadLocation1_x == 5 && planeHeadLocation2_y == 3:
+          planeHeadLocation2_x = 7;
+          break;
+        case planeHeadDirection1 == 'up' && planeHeadDirection2 == 'down' && planeHeadLocation1_y == 1:
+          planeHeadLocation2_y = planeHeadLocation2_y<4?4:planeHeadLocation2_y;
+          break;
+        case planeHeadDirection2 == 'up':
+          planeHeadLocation2_y = planeHeadLocation2_y>3?3:planeHeadLocation2_y;
+          break;
+        case planeHeadDirection2 == 'up' && planeHeadLocation2_y >= 1 && planeHeadDirection3 == 'right':
+          //planeHeadLocation3_y = 7;
+          planeHeadLocation3_x = planeHeadLocation3_x>3?3:planeHeadLocation3_y;
+          break;
+        case planeHeadDirection2 == 'up' && planeHeadLocation2_y >= 1 && planeHeadDirection3 == 'left':
+          //planeHeadLocation3_y = 7;
+          planeHeadLocation3_x = planeHeadLocation3_x>3?3:planeHeadLocation3_y;
+          break;
+        case planeHeadDirection2 == 'up' && planeHeadLocation2_y >= 1 && planeHeadDirection3 == 'down':
+          //planeHeadLocation3_y = 7;
+          planeHeadLocation3_x = planeHeadLocation3_x>4?4:planeHeadLocation3_y;
+          break;
+        case planeHeadDirection2 == 'right':
+          planeHeadLocation2_x = planeHeadLocation2_x<8?8:planeHeadLocation2_x;
+          break;
+        case planeHeadDirection2 == 'right' || planeHeadDirection2 == 'left':
+          planeHeadLocation3_x = planeHeadLocation3_x>4?4:planeHeadLocation3_x;
+          break;
+
+      }
+      //planeHeadLocation3_x = planeHeadLocation3_x<7?7:planeHeadLocation3_x;
+      //planeHeadLocation3_y = planeHeadLocation3_y<7?7:planeHeadLocation3_y;
+      window.planeHeadDirection1 = planeHeadDirection1;
+      window.planeHeadLocation1_x = planeHeadLocation1_x;
+      window.planeHeadLocation1_y = planeHeadLocation1_y;
+      window.planeHeadDirection2 = planeHeadDirection2;
+      window.planeHeadLocation2_x = planeHeadLocation2_x;
+      window.planeHeadLocation2_y = planeHeadLocation2_y;
+      window.planeHeadDirection3 = planeHeadDirection3;
+      window.planeHeadLocation3_x = planeHeadLocation3_x;
+      window.planeHeadLocation3_y = planeHeadLocation3_y;
+      console.log(planeHeadDirection1,planeHeadDirection2,planeHeadDirection3)
+      span.className = 'notActive';
+      game.init();
+      btn.disabled = false;
+      makeSelf.disabled = true;
+      makeRandom.disabled = true;
+      iptx.readOnly = false;
+      ipty.readOnly = false;
+    };
+    //输入选中位置 决定结果
+    btn.onclick = function(){
+      //var x = prompt('请输入要炸掉位置的横坐标 0-9');
+      //var y = prompt('请输入要炸掉位置的纵坐标 0-9');
+      var x = iptx.value;
+      var y = ipty.value;
+      x=x<0?0:x;
+      x=x>9?9:x;
+      y=y<0?0:y;
+      y=y>9?9:y;
+      window.x = x;
+      window.y = y;
+      game.gameOver(game.plane.body1,1);
+      game.gameOver(game.plane.body2,11);
+      game.gameOver(game.plane.body3,21);
+      iptx.value = '';
+      ipty.value = '';
+    }
+
+    //game.Playing();
+  </script>
+</body>
+</html>
